@@ -20,7 +20,7 @@
       font-weight: bold;
       margin-right: 10px;
     }
-    input[type=number] {
+    input[type=number], input[type=text] {
       width: 70px;
       padding: 5px;
       font-size: 14px;
@@ -98,13 +98,25 @@
 
       const table = document.createElement("table");
       const header = document.createElement("tr");
-      header.innerHTML = "<th>教室</th><th>3号(現在)</th><th>4号(現在)</th><th>5号(現在)</th><th>3号(変更後)</th><th>4号(変更後)</th><th>5号(変更後)</th>";
+      header.innerHTML = `
+        <th>教室</th>
+        <th>校舎</th>
+        <th>階</th>
+        <th>3号(現在)</th>
+        <th>4号(現在)</th>
+        <th>5号(現在)</th>
+        <th>3号(変更後)</th>
+        <th>4号(変更後)</th>
+        <th>5号(変更後)</th>
+      `;
       table.appendChild(header);
 
       for (let i = 0; i < count; i++) {
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${i+1}教室</td>
+          <td><input type="text" id="building_${i}" placeholder="A棟"></td>
+          <td><input type="number" id="floor_${i}" value="1" min="1"></td>
           <td><input type="number" id="cur3_${i}" value="0" min="0"></td>
           <td><input type="number" id="cur4_${i}" value="0" min="0"></td>
           <td><input type="number" id="cur5_${i}" value="0" min="0"></td>
@@ -119,41 +131,61 @@
 
     function calculate() {
       const count = parseInt(document.getElementById("roomCount").value);
-      const diff = {3:[],4:[],5:[]};
+      const rooms = [];
 
       for (let i=0; i<count; i++) {
-        const cur3 = parseInt(document.getElementById(`cur3_${i}`).value);
-        const cur4 = parseInt(document.getElementById(`cur4_${i}`).value);
-        const cur5 = parseInt(document.getElementById(`cur5_${i}`).value);
-        const new3 = parseInt(document.getElementById(`new3_${i}`).value);
-        const new4 = parseInt(document.getElementById(`new4_${i}`).value);
-        const new5 = parseInt(document.getElementById(`new5_${i}`).value);
-
-        diff[3].push(new3 - cur3);
-        diff[4].push(new4 - cur4);
-        diff[5].push(new5 - cur5);
+        rooms.push({
+          index: i,
+          name: `${i+1}教室`,
+          building: document.getElementById(`building_${i}`).value || "未設定",
+          floor: parseInt(document.getElementById(`floor_${i}`).value),
+          cur: {
+            3: parseInt(document.getElementById(`cur3_${i}`).value),
+            4: parseInt(document.getElementById(`cur4_${i}`).value),
+            5: parseInt(document.getElementById(`cur5_${i}`).value),
+          },
+          new: {
+            3: parseInt(document.getElementById(`new3_${i}`).value),
+            4: parseInt(document.getElementById(`new4_${i}`).value),
+            5: parseInt(document.getElementById(`new5_${i}`).value),
+          }
+        });
       }
+
+      // 並び替え (校舎→階→教室番号)
+      rooms.sort((a,b)=>{
+        if(a.building < b.building) return -1;
+        if(a.building > b.building) return 1;
+        if(a.floor !== b.floor) return a.floor - b.floor;
+        return a.index - b.index;
+      });
 
       let output = "<h2>移動計画</h2>";
 
       ["3","4","5"].forEach(type=>{
         output += `<h3>${type}号椅子</h3><table><tr><th>移動元</th><th>移動先</th><th>個数</th></tr>`;
+
         let donors = [], receivers = [];
-        diff[type].forEach((d,i)=>{ if(d<0) donors.push({room:i,remain:-d}); if(d>0) receivers.push({room:i,need:d}); });
+        rooms.forEach(r=>{
+          const diff = r.new[type] - r.cur[type];
+          if(diff < 0) donors.push({room:r,remain:-diff});
+          if(diff > 0) receivers.push({room:r,need:diff});
+        });
 
         donors.forEach(donor=>{
           while(donor.remain>0 && receivers.length>0){
             let rec = receivers[0];
             let move = Math.min(donor.remain, rec.need);
-            output += `<tr><td>${donor.room+1}教室</td><td>${rec.room+1}教室</td><td>${move}</td></tr>`;
+            output += `<tr><td>${donor.room.building}${donor.room.floor}階 ${donor.room.name}</td><td>${rec.room.building}${rec.room.floor}階 ${rec.room.name}</td><td>${move}</td></tr>`;
             donor.remain -= move;
             rec.need -= move;
             if(rec.need===0) receivers.shift();
           }
           if(donor.remain>0){
-            output += `<tr><td>${donor.room+1}教室</td><td>空き教室</td><td>${donor.remain}</td></tr>`;
+            output += `<tr><td>${donor.room.building}${donor.room.floor}階 ${donor.room.name}</td><td>空き教室</td><td>${donor.remain}</td></tr>`;
           }
         });
+
         output += "</table>";
       });
 
