@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>椅子移動計算アプリ</title>
+  <style>
+    body {
+      font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+      margin: 30px;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      color: #2a5d9f;
+      border-bottom: 3px solid #2a5d9f;
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+    }
+    label {
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    input[type=number] {
+      width: 70px;
+      padding: 5px;
+      font-size: 14px;
+      text-align: right;
+    }
+    button {
+      margin: 10px 5px;
+      padding: 8px 20px;
+      background-color: #2a5d9f;
+      border: none;
+      color: white;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: #1d3f6e;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 15px 0;
+      background: white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #f0f4fa;
+      color: #2a5d9f;
+      font-weight: bold;
+    }
+    .result h2 {
+      margin-top: 30px;
+      color: #2a5d9f;
+    }
+    .result h3 {
+      margin-top: 20px;
+      margin-bottom: 8px;
+      color: #444;
+      border-left: 5px solid #2a5d9f;
+      padding-left: 6px;
+      font-size: 18px;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>椅子移動計算アプリ</h1>
+
+  <div class="container">
+    <label>教室の数: <input type="number" id="roomCount" min="1" value="2"></label>
+    <button onclick="createInputTable()">入力フォーム生成</button>
+
+    <div id="inputArea"></div>
+    <button onclick="calculate()">計算する</button>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    function createInputTable() {
+      const count = parseInt(document.getElementById("roomCount").value);
+      const inputArea = document.getElementById("inputArea");
+      inputArea.innerHTML = "";
+
+      const table = document.createElement("table");
+      const header = document.createElement("tr");
+      header.innerHTML = "<th>教室</th><th>3号(現在)</th><th>4号(現在)</th><th>5号(現在)</th><th>3号(変更後)</th><th>4号(変更後)</th><th>5号(変更後)</th>";
+      table.appendChild(header);
+
+      for (let i = 0; i < count; i++) {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${i+1}教室</td>
+          <td><input type="number" id="cur3_${i}" value="0" min="0"></td>
+          <td><input type="number" id="cur4_${i}" value="0" min="0"></td>
+          <td><input type="number" id="cur5_${i}" value="0" min="0"></td>
+          <td><input type="number" id="new3_${i}" value="0" min="0"></td>
+          <td><input type="number" id="new4_${i}" value="0" min="0"></td>
+          <td><input type="number" id="new5_${i}" value="0" min="0"></td>
+        `;
+        table.appendChild(row);
+      }
+      inputArea.appendChild(table);
+    }
+
+    function calculate() {
+      const count = parseInt(document.getElementById("roomCount").value);
+      const diff = {3:[],4:[],5:[]};
+
+      for (let i=0; i<count; i++) {
+        const cur3 = parseInt(document.getElementById(`cur3_${i}`).value);
+        const cur4 = parseInt(document.getElementById(`cur4_${i}`).value);
+        const cur5 = parseInt(document.getElementById(`cur5_${i}`).value);
+        const new3 = parseInt(document.getElementById(`new3_${i}`).value);
+        const new4 = parseInt(document.getElementById(`new4_${i}`).value);
+        const new5 = parseInt(document.getElementById(`new5_${i}`).value);
+
+        diff[3].push(new3 - cur3);
+        diff[4].push(new4 - cur4);
+        diff[5].push(new5 - cur5);
+      }
+
+      let output = "<h2>移動計画</h2>";
+
+      ["3","4","5"].forEach(type=>{
+        output += `<h3>${type}号椅子</h3><table><tr><th>移動元</th><th>移動先</th><th>個数</th></tr>`;
+        let donors = [], receivers = [];
+        diff[type].forEach((d,i)=>{ if(d<0) donors.push({room:i,remain:-d}); if(d>0) receivers.push({room:i,need:d}); });
+
+        donors.forEach(donor=>{
+          while(donor.remain>0 && receivers.length>0){
+            let rec = receivers[0];
+            let move = Math.min(donor.remain, rec.need);
+            output += `<tr><td>${donor.room+1}教室</td><td>${rec.room+1}教室</td><td>${move}</td></tr>`;
+            donor.remain -= move;
+            rec.need -= move;
+            if(rec.need===0) receivers.shift();
+          }
+          if(donor.remain>0){
+            output += `<tr><td>${donor.room+1}教室</td><td>空き教室</td><td>${donor.remain}</td></tr>`;
+          }
+        });
+        output += "</table>";
+      });
+
+      document.getElementById("result").innerHTML = output;
+    }
+  </script>
+</body>
+</html>
